@@ -1,86 +1,148 @@
 import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-import shutil
 from datetime import datetime
+from pathlib import Path
+import time
+#from msal import PublicClientApplication #this is for using oneDrive
+# # Configurable setting
+SKIP_IF_SINGLE_ALT = True  # Set to False to disable this condition
+DELAY=1.1
+alphabet=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S","T","U","V","W","X","Y","Z"]
 
-
-# Step 1: Define the scope and authenticate using the service account
+# Step 1: Define the scope and authenticate for both sheets
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
-# Authenticate using the service account JSON file
-credentials = ServiceAccountCredentials.from_json_keyfile_name('Fileshaker\sheet-reader.json', scope)
+# Define credentials paths
+base_dir = Path('Fileshaker')  # Replace with your base directory if needed
+credentials_path = base_dir / 'secret' / 'sheet-reader.json'
+renamer_credentials_path = base_dir / 'secret' / 'sheet-reader.json'
+logger_credentials_path = base_dir / 'secret' / 'sheet-writer-key.json'
+
+credentials = ServiceAccountCredentials.from_json_keyfile_name(str(credentials_path), scope)
 client = gspread.authorize(credentials)
 
-# Open the Google Sheet by its URL
-sheet_url = 'https://docs.google.com/spreadsheets/d/12_sh_2ncWKpIbKKxkXBNCdcmMVdaXf-NUww7MotNxRc/edit?usp=sharing'  # Replace with your sheet URL
-sheet = client.open_by_url(sheet_url).sheet1
+# Authenticate for Renamer Sheet
+renamer_credentials = ServiceAccountCredentials.from_json_keyfile_name(str(renamer_credentials_path), scope)
+renamer_client = gspread.authorize(renamer_credentials)
 
-# Step 2: Read current names, new folder names, and other relevant columns from the sheet
-data = sheet.get_all_records()  # Get all rows as a list of dictionaries
-name_folder_mapping = {row['VPN']: row['Primary Name'] for row in data}
+# Authenticate for Shake Logger Sheet
+logger_credentials = ServiceAccountCredentials.from_json_keyfile_name(str(logger_credentials_path), scope)
+logger_client = gspread.authorize(logger_credentials)
 
-# Step : Get today's date in the desired format
-today_date = datetime.now().strftime("%Y-%m-%d")  # Ensure this is declared here
+# Step 2: Open the sheets by their URLs
+renamer_sheet_url = 'https://docs.google.com/spreadsheets/d/12_sh_2ncWKpIbKKxkXBNCdcmMVdaXf-NUww7MotNxRc/edit?usp=sharing'
+logger_sheet_url = 'https://docs.google.com/spreadsheets/d/1fU1YOUv_DAzIb0PBvx__KfHoZ2EqXymOqnqCgrUMxJc/edit?usp=sharing'
 
-# Step : Define the folder paths
-source_folder_path = 'Fileshaker\files-to-rename'  # Folder containing files
-output_base_path = 'Fileshaker\files-shaked'  # Base folder for outputs
+# Open sheets
+renamer_sheet = renamer_client.open_by_url(renamer_sheet_url).sheet1
+logger_sheet = logger_client.open_by_url(logger_sheet_url).sheet1
+
+# Step 3: Read data from the Renamer Sheet
+data = renamer_sheet.get_all_records()  # Get all rows as a list of dictionaries
+#print(data[0].keys())
 
 
-# Step 3: Loop through files in the 'files-to-rename' directory
-folder_path = 'Fileshaker\files-to-rename'  # Folder containing files
+# Step 4: Prepare file paths and date
+source_folder_path = base_dir  / 'files-to-rename' 
+today_date = datetime.now().strftime("%Y-%m-%d")
 
+# Step 5: Loop through the rows in the Renamer Sheet
 for row in data:
     vpn = str(row['VPN']).lower()  # Convert VPN to string
-    primary_name = row['Primary Name']  # The new name for the first matching file
-    alt_folder_name = row['Alt Folder Name']  # The folder to move the remaining files to
+    primary_name = row['Primary Name']
+    notes = row.get('Notes', '')  # Notes column from the Renamer sheet (default to empty)
+    eta=row.get('ETA','')
 
-    # Step 4: Search for files in the folder that contain the VPN in their name
-    files_to_process = []
+    # Skip processing if VPN is blank
+    if not vpn:
+        print("Skipping row with blank VPN value.")
+        continue
+    
+    # Search for files containing the VPN in their name
+    files_to_process = [
+        source_folder_path / filename
+        for filename in os.listdir(source_folder_path)
+        if vpn in filename.lower() and not (source_folder_path / filename).is_dir()
+    ]
+    
+    # Skip processing if no matching files are found
+    if not files_to_process:
+        print(f"No matching files found for VPN '{vpn}'. Skipping processing.")
+        continue
 
-    for filename in os.listdir(folder_path):
-        current_file_path = os.path.join(folder_path, filename)
+    # Sort the files
+    files_to_process.sort()
 
-        # Skip directories (only process files)
-        if os.path.isdir(current_file_path):
-            continue
+    # Handle case where there is only one matching file
+    if SKIP_IF_SINGLE_ALT and len(files_to_process) == 1:
+        single_alt_folder = source_folder_path / f"Single_ALT_{today_date}"
+        single_alt_folder.mkdir(parents=True, exist_ok=True)
+        
+        single_file = files_to_process[0]
+        new_single_file_path = single_alt_folder / single_file.name
+        single_file.rename(new_single_file_path)
+        
+        print(f"Only one matching file found for VPN '{vpn}'. Moved to '{single_alt_folder}'.")
+        
+        # Log this action
+        logger_sheet.append_row([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Date
+            vpn,                                           # Search key
+            primary_name,                                  # Primary Name
+            "Skipped (Single ALT)",                       # Status
+            0,                                            # Number of Alts
+            notes,                                        # Notes
+            "",                                           # Primary folder
+            str(single_alt_folder),                        # Single Alt Folder Name
+            eta                                             #Current ETA Date
+        ])
+        time.sleep(DELAY)
+        continue
 
-        # If the VPN (converted to string) is found in the filename, add it to the list of files to process
-        if vpn in filename.lower():
-            files_to_process.append(current_file_path)
+    # Create output folders
+    primary_folder = source_folder_path / f"Primary_{today_date}"
+    alt_folder = source_folder_path / f"ALT_{today_date}"
 
-    # Step 5: Sort the files (e.g., by filename)
-    files_to_process.sort()  # Modify this sorting criterion as needed
+    primary_folder.mkdir(parents=True, exist_ok=True)
+    alt_folder.mkdir(parents=True, exist_ok=True)
 
-    # Step 7: Create output folders
-    primary_folder = os.path.join('/Users/amirali/Library/Mobile Documents/com~apple~CloudDocs/Python Projects/Renamer/files-to-rename', f"Primary_{today_date}")
-    alt_folder = os.path.join('/Users/amirali/Library/Mobile Documents/com~apple~CloudDocs/Python Projects/Renamer/files-to-rename', f"Alt_{today_date}")
+    # Initialize logging variables
+    is_primary_moved = False
+    num_alts = 0
+    alt_folder_name_logged = ""
 
-    os.makedirs(primary_folder, exist_ok=True)
-    os.makedirs(alt_folder, exist_ok=True)
-
-    # Step 8: If there are files to process, handle renaming and moving
     if files_to_process:
-        # Rename and move the first file to the "Primary" folder
-        first_file = files_to_process[0]
-        first_file_name = os.path.basename(first_file)
-
-        # Extract file extension
-        file_extension = os.path.splitext(first_file_name)[1]
-
         # Rename and move the first file
-        new_primary_path = os.path.join(primary_folder, primary_name + file_extension)
-        os.rename(first_file, new_primary_path)
-        print(f"Moved '{first_file_name}' to '{new_primary_path}'")
+        first_file = files_to_process[0]
+        file_extension = first_file.suffix
+        new_primary_path = primary_folder / (primary_name + file_extension)
+        first_file.rename(new_primary_path)
+        is_primary_moved = True
+        print(f"Primary file '{first_file.name}' moved to '{primary_folder}'")
 
-        # Rename and move the remaining files to the "Alt" folder
+        # Process the remaining files (Alt files)
         for index, file_path in enumerate(files_to_process[1:], start=1):
-            file_name = os.path.basename(file_path)
-            alt_name = f"{primary_name}_alt{index}{file_extension}"
-            new_alt_file_path = os.path.join(alt_folder, alt_name)
+            file_extension = file_path.suffix
+            alt_name = f"{primary_name}_ALT_{alphabet[index-1]}{file_extension}"
+            new_alt_file_path = alt_folder / alt_name
+            file_path.rename(new_alt_file_path)
+            num_alts += 1
+            alt_folder_name_logged = str(alt_folder)  # Record the Alt folder name
 
-            os.rename(file_path, new_alt_file_path)
-            print(f"Moved '{file_name}' to '{new_alt_file_path}'")
-    else:
-        print(f"No files found matching VPN '{vpn}' in folder '{source_folder_path}'")
+        # Print the Alt folder name after processing all alts
+        print(f"ALT files for VPN '{vpn}' are moved to folder: {alt_folder}")
+
+    # Log actions to the Shake Logger Sheet
+    logger_sheet.append_row([
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Date
+        vpn,                                           # Search key
+        primary_name,                                  # Primary Name
+        "Yes" if is_primary_moved else "No",           # Is Primary moved
+        num_alts,                                      # Number of Alts
+        notes,                                         # Notes
+        str(primary_folder) if is_primary_moved else "",  # Primary folder
+        alt_folder_name_logged,                        # Alt Folder Name
+        eta                                            # Current ETA Date
+    ])
+    time.sleep(DELAY)
