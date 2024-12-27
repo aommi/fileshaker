@@ -14,10 +14,11 @@ client = gspread.authorize(credentials)
 
 # Step 2: Open the Renamer Sheet by URL
 renamer_sheet_url = 'https://docs.google.com/spreadsheets/d/12_sh_2ncWKpIbKKxkXBNCdcmMVdaXf-NUww7MotNxRc/edit?usp=sharing'
-renamer_sheet = client.open_by_url(renamer_sheet_url).sheet1
+renamer_sheet = client.open_by_url(renamer_sheet_url).get_worksheet_by_id('1878798757')
 
 # Step 3: Read data from the Renamer Sheet
 data = renamer_sheet.get_all_records()
+print(data)
 
 # Step 4: Prepare file paths
 source_folder_path = asset_dir /'files-to-uppercase'
