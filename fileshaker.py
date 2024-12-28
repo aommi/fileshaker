@@ -6,7 +6,7 @@ from pathlib import Path
 import time
 #from msal import PublicClientApplication #this is for using oneDrive
 # # Configurable setting
-SKIP_IF_SINGLE_ALT = True  # Set to False to disable this condition
+SKIP_IF_SINGLE_ALT = False  # Set to False to disable this condition
 DELAY=1.1
 alphabet=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S","T","U","V","W","X","Y","Z"]
 
@@ -14,13 +14,12 @@ alphabet=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
 # Define credentials paths
-base_dir = Path('Fileshaker')  # Replace with your base directory if needed
-credentials_path = base_dir / 'secret' / 'sheet-reader.json'
-renamer_credentials_path = base_dir / 'secret' / 'sheet-reader.json'
-logger_credentials_path = base_dir / 'secret' / 'sheet-writer-key.json'
+base_dir = Path('C:/Python Projects')  # Replace with your base directory if needed
+credentials_path = base_dir / 'secret'
+renamer_credentials_path = credentials_path / 'sheet-reader-key.json'
+logger_credentials_path = credentials_path /  'sheet-writer-key.json'
 
-credentials = ServiceAccountCredentials.from_json_keyfile_name(str(credentials_path), scope)
-client = gspread.authorize(credentials)
+
 
 # Authenticate for Renamer Sheet
 renamer_credentials = ServiceAccountCredentials.from_json_keyfile_name(str(renamer_credentials_path), scope)
@@ -44,12 +43,13 @@ data = renamer_sheet.get_all_records()  # Get all rows as a list of dictionaries
 
 
 # Step 4: Prepare file paths and date
-source_folder_path = base_dir  / 'files-to-rename' 
+source_folder_path = base_dir  / 'Assets Processed'/'files-to-rename' 
 today_date = datetime.now().strftime("%Y-%m-%d")
 
 # Step 5: Loop through the rows in the Renamer Sheet
 for row in data:
     vpn = str(row['VPN']).lower()  # Convert VPN to string
+    alt_vpn=str(row['alt-VPN']).lower()
     primary_name = row['Primary Name']
     notes = row.get('Notes', '')  # Notes column from the Renamer sheet (default to empty)
     eta=row.get('ETA','')
@@ -63,7 +63,7 @@ for row in data:
     files_to_process = [
         source_folder_path / filename
         for filename in os.listdir(source_folder_path)
-        if vpn in filename.lower() and not (source_folder_path / filename).is_dir()
+        if (vpn in filename.lower() or alt_vpn in filename.lower())and not (source_folder_path / filename).is_dir()
     ]
     
     # Skip processing if no matching files are found
@@ -72,7 +72,8 @@ for row in data:
         continue
 
     # Sort the files
-    files_to_process.sort()
+    #files_to_process.sort()
+    files_to_process.sort(key=lambda filepath: (0 if 'hero' in str(filepath).lower() else 1, filepath))
 
     # Handle case where there is only one matching file
     if SKIP_IF_SINGLE_ALT and len(files_to_process) == 1:
