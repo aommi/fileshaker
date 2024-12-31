@@ -72,8 +72,8 @@ for row in data:
         continue
 
     # Sort the files
-    #files_to_process.sort()
-    files_to_process.sort(key=lambda filepath: (0 if 'hero' in str(filepath).lower() else 1, filepath))
+    files_to_process.sort()
+    #files_to_process.sort(key=lambda filepath: (0 if 'hero' in str(filepath).lower() else 1, filepath))
 
     # Handle case where there is only one matching file
     if SKIP_IF_SINGLE_ALT and len(files_to_process) == 1:
