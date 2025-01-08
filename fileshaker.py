@@ -73,11 +73,22 @@ for row in data:
 
     # Sort the files
     #files_to_process.sort()
+    
     files_to_process.sort(key=lambda filepath: (
-    0 if '_f_' in str(filepath).lower() else
+    0 if 'model_1' in str(filepath).lower()
+    else 1 if 'product_1' in str(filepath).lower() else
     2, filepath
 ))
-
+    """
+    files_to_process.sort(key=lambda filepath: (
+        0 if 'A1' in str(filepath).lower()
+        else 1 if 'E1' in str(filepath).lower()
+        else 1 if 'D1' in str(filepath).lower()
+        else 1 if 'C1' in str(filepath).lower()
+        else
+        2, filepath
+))
+"""
     # Handle case where there is only one matching file
     if SKIP_IF_SINGLE_ALT and len(files_to_process) == 1:
         single_alt_folder = source_folder_path / f"Single_ALT_{today_date}"
