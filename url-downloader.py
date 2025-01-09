@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 import time
 from collections import defaultdict
+import re  # Import regex to clean filenames
 
 # Step 1: Define the scope and authenticate for both sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -34,6 +35,10 @@ data = sheet.get_all_records()
 # Track ALT file counts per ProductID_Colour
 alt_file_count = defaultdict(int)
 
+def sanitize_filename(filename: str) -> str:
+    """Remove invalid characters from filenames."""
+    return re.sub(r'[<>:"/\\|?*]', '_', filename)
+
 # Download files based on URL and naming conventions
 for index, record in enumerate(data):
     url = record.get("URL")
@@ -44,20 +49,23 @@ for index, record in enumerate(data):
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
-            file_extension = os.path.splitext(url)[-1] if '.' in os.path.basename(url) else '.bin'
+            file_extension = os.path.splitext(url.split('?')[0])[-1]  # Ignore query parameters for extension
 
             if asset_type and asset_type.lower() == "primary" and product_id_colour:
-                filename = os.path.join(DOWNLOAD_DIR, f"{product_id_colour}{file_extension}")
+                filename = f"{product_id_colour}{file_extension}"
             elif asset_type and asset_type.lower() == "alt" and product_id_colour:
                 alt_file_count[product_id_colour] += 1
-                filename = os.path.join(DOWNLOAD_DIR, f"{product_id_colour}_ALT-{alt_file_count[product_id_colour]}{file_extension}")
+                filename = f"{product_id_colour}_ALT-{alt_file_count[product_id_colour]}{file_extension}"
             else:
-                filename = os.path.join(DOWNLOAD_DIR, f"file_{index + 1}{file_extension}")
+                filename = f"file_{index + 1}{file_extension}"
 
-            with open(filename, 'wb') as file:
+            filename = sanitize_filename(filename)  # Clean the filename
+            filepath = os.path.join(DOWNLOAD_DIR, filename)
+
+            with open(filepath, 'wb') as file:
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
-            print(f"Downloaded: {url} to {filename}")
+            print(f"Downloaded: {url} to {filepath}")
         except requests.RequestException as e:
             print(f"Failed to download {url}: {e}")
     else:
