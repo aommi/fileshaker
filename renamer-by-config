@@ -2,26 +2,31 @@ import os
 from pathlib import Path
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from config import CONFIG  # Import CONFIG from config.py
 
 # Step 1: Define the scope and authenticate
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-base_dir = Path('C:/Python Projects')  # Base directory
-asset_dir = base_dir/Path('Assets Processed/')  # Base directory
-credentials_path = base_dir / 'secret' / 'sheet-reader-key.json'
+base_dir = CONFIG["base_dir"]
+asset_dir = base_dir / CONFIG["asset_dirs"]["renamer"]
+credentials_path = base_dir / CONFIG["credentials"]["reader"]
 
 credentials = ServiceAccountCredentials.from_json_keyfile_name(str(credentials_path), scope)
 client = gspread.authorize(credentials)
 
 # Step 2: Open the Renamer Sheet by URL
-renamer_sheet_url = 'https://docs.google.com/spreadsheets/d/12_sh_2ncWKpIbKKxkXBNCdcmMVdaXf-NUww7MotNxRc/edit?usp=sharing'
-renamer_sheet = client.open_by_url(renamer_sheet_url).get_worksheet_by_id('1878798757')
+renamer_sheet_url = CONFIG["spreadsheets_list"]["renamer_input"]["url"]
+renamer_input_sheet_id = CONFIG["spreadsheets_list"]["renamer_input"]["input_sheet_id"]
+print(f"Renamer sheet URL: {renamer_sheet_url}")
+print(f"Input sheet ID: {renamer_input_sheet_id}")
+
+renamer_sheet = client.open_by_url(renamer_sheet_url).get_worksheet_by_id(renamer_input_sheet_id)
 
 # Step 3: Read data from the Renamer Sheet
 data = renamer_sheet.get_all_records()
 print(data)
 
 # Step 4: Prepare file paths
-source_folder_path = asset_dir /'files-to-uppercase'
+source_folder_path = asset_dir
 
 # Step 5: Rename files based on the sheet
 for row in data:

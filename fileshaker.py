@@ -72,13 +72,12 @@ for row in data:
         continue
 
     # Sort the files
-    #files_to_process.sort()
+    files_to_process.sort()
     
-    files_to_process.sort(key=lambda filepath: (
-    0 if 'model_1' in str(filepath).lower()
-    else 1 if 'product_1' in str(filepath).lower() else
-    2, filepath
-))
+    #files_to_process.sort(key=lambda filepath: (
+    #0 if '_f' in str(filepath).lower()
+    #else 2, filepath
+#))
     """
     files_to_process.sort(key=lambda filepath: (
         0 if 'A1' in str(filepath).lower()

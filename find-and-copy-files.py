@@ -24,8 +24,8 @@ def search_and_copy_files(search_keys_file, source_folder, destination_folder):
                     print(f"Copied: {source_path} to {destination_path}")
 
 if __name__ == "__main__":
-    search_keys_file = "C:\\Python Projects\\Assets Processed\\files-found\\search keys.txt"
+    search_keys_file = "C:\\Python Projects\\fileshaker\\Assets Processed\\files-found\\search keys.txt"
     source_folder = input("Enter the path to the source folder: ").strip()
-    destination_folder = "C:\\Python Projects\\Assets Processed\\files-found\\files-copied"
+    destination_folder = "C:\\Python Projects\\fileshaker\\Assets Processed\\files-found\\files-copied"
 
     search_and_copy_files(search_keys_file, source_folder, destination_folder)

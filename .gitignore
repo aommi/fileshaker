@@ -3,3 +3,7 @@ Assets Processed/
 files-shaked/
 files-to-rename/
 files-downloaded/
+# Ignore the real environment variable files
+.env
+.env.*
+!*.example
