@@ -14,7 +14,7 @@ alphabet=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
 # Define credentials paths
-base_dir = Path('C:/Python Projects/fileshaker')  # Replace with your base directory if needed
+base_dir = Path('C:/python-projects/fileshaker')  # Replace with your base directory if needed
 credentials_path = base_dir / 'secret'
 renamer_credentials_path = credentials_path / 'sheet-reader-key.json'
 logger_credentials_path = credentials_path /  'sheet-writer-key.json'
@@ -43,7 +43,7 @@ data = renamer_sheet.get_all_records()  # Get all rows as a list of dictionaries
 
 
 # Step 4: Prepare file paths and date
-source_folder_path = base_dir  / 'Assets Processed'/'files-to-rename' 
+source_folder_path = base_dir  / 'assets'/'files-to-shake' 
 today_date = datetime.now().strftime("%Y-%m-%d")
 
 # Step 5: Loop through the rows in the Renamer Sheet
@@ -75,7 +75,8 @@ for row in data:
     files_to_process.sort()
     
     #files_to_process.sort(key=lambda filepath: (
-    #0 if '_f' in str(filepath).lower()
+    #0 if '-hero' in str(filepath).lower()
+    #else 1 if '-1-' in str(filepath).lower()
     #else 2, filepath
 #))
     """

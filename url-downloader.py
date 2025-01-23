@@ -12,7 +12,7 @@ import re  # Import regex to clean filenames
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 # Define credentials paths
-base_dir = Path("C:/Python Projects/fileshaker")  # Replace with your base directory if needed
+base_dir = Path("C:/Python-Projects/fileshaker")  # Replace with your base directory if needed
 credentials_path = base_dir / "secret"
 downloader_credentials_path = credentials_path / "sheet-reader-key.json"
 logger_credentials_path = credentials_path / "sheet-writer-key.json"
@@ -23,7 +23,7 @@ downloader_client = gspread.authorize(downloader_credentials)
 downloader_sheet_url = "https://docs.google.com/spreadsheets/d/1DubHPcNpeLRdXWDfw8qBDw30Ia-Ve3ZUlmEP7S7yd1Y/edit?usp=sharing"
 
 # Directory to save downloaded files
-DOWNLOAD_DIR = "files-downloaded"
+DOWNLOAD_DIR = "assets/files-downloaded"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # Open the Google Sheet
