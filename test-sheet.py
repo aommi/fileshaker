@@ -8,7 +8,9 @@ from pathlib import Path
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
 # Define credentials paths
-base_dir = Path('C:/python-projects/fileshaker')  # Replace with your base directory if needed
+#base_dir=Path('/Users/amirali/Library/Mobile Documents/com~apple~CloudDocs/Python Projects/fileshaker')
+base_dir=Path('/Users/amirali/Library/Mobile Documents/com~apple~CloudDocs/Python Projects/fileshaker')
+#base_dir = Path('C:/python-projects/fileshaker')  # Replace with your base directory if needed
 credentials_path = base_dir / 'secret'
 renamer_credentials_path = credentials_path / 'sheet-reader-key.json'
 
