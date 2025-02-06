@@ -4,12 +4,15 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from pathlib import Path
 import time
+from config import CONFIG
+from sheet_authenticator import SheetAuthenticator
 #from msal import PublicClientApplication #this is for using oneDrive
 # # Configurable setting
-SKIP_IF_SINGLE_ALT = False  # Set to False to disable this condition
-DELAY=1.01
+#SKIP_IF_SINGLE_ALT = False  # Set to False to disable this condition [i removed the code for this condition]
+#DELAY=1.01
 alphabet=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S","T","U","V","W","X","Y","Z"]
-
+#the alphabe list is used to name the alt files but the implementation is tricky i had one case
+# that code crashed because there were more images than 26 however it was crappy data
 # Step 1: Define the scope and authenticate for both sheets
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 
@@ -31,16 +34,16 @@ logger_client = gspread.authorize(logger_credentials)
 
 # Step 2: Open the sheets by their URLs
 renamer_sheet_url = 'https://docs.google.com/spreadsheets/d/12_sh_2ncWKpIbKKxkXBNCdcmMVdaXf-NUww7MotNxRc/'
-logger_sheet_url = 'https://docs.google.com/spreadsheets/d/1fU1YOUv_DAzIb0PBvx__KfHoZ2EqXymOqnqCgrUMxJc/edit?usp=sharing'
+logger_sheet_url = 'https://docs.google.com/spreadsheets/d/1fU1YOUv_DAzIb0PBvx__KfHoZ2EqXymOqnqCgrUMxJc'
 
 # Open sheets
-renamer_sheet = renamer_client.open_by_url(renamer_sheet_url).sheet1
-logger_sheet = logger_client.open_by_url(logger_sheet_url).sheet1
+renamer_sheet = renamer_client.open_by_url(renamer_sheet_url).get_worksheet_by_id('1337513774')
+#logger_sheet = logger_client.open_by_url(logger_sheet_url).get_worksheet_by_id('1513938442')
 
 # Step 3: Read data from the Renamer Sheet
 data = renamer_sheet.get_all_records()  # Get all rows as a list of dictionaries
 print(data[0].keys())
-
+#add a validation for number of charcters in primary filename so to don't make mistakes
 
 # Step 4: Prepare file paths and date
 source_folder_path = base_dir  / 'assets'/'files-to-shake' 
@@ -73,17 +76,10 @@ for row in data:
         continue
 
     # Sort the files
-    #files_to_process.sort()
+    files_to_process.sort()
     
+    #custom sorting
     """
-    files_to_process.sort(key=lambda filepath: (
-    0 if '-hero_' in str(filepath).lower()
-    else 1 if 'alt2' in str(filepath).lower()
-    else 2 if 'alt3' in str(filepath).lower()
-    else 3 if 'alt1' in str(filepath).lower()
-    else 4, filepath
-))
-    
     files_to_process.sort(key=lambda filepath: (
         0 if 'A1' in str(filepath).lower()
         else 1 if 'E1' in str(filepath).lower()
@@ -93,31 +89,6 @@ for row in data:
         2, filepath
 ))
 """
-    # Handle case where there is only one matching file
-    if SKIP_IF_SINGLE_ALT and len(files_to_process) == 1:
-        single_alt_folder = output_folder_path / f"Single_ALT_{today_date}"
-        single_alt_folder.mkdir(parents=True, exist_ok=True)
-        
-        single_file = files_to_process[0]
-        new_single_file_path = single_alt_folder / single_file.name
-        single_file.rename(new_single_file_path)
-        
-        print(f"Only one matching file found for VPN '{vpn}'. Moved to '{single_alt_folder}'.")
-        
-        # Log this action
-        logger_sheet.append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Date
-            vpn,                                           # Search key
-            primary_name,                                  # Primary Name
-            "Skipped (Single ALT)",                       # Status
-            0,                                            # Number of Alts
-            notes,                                        # Notes
-            "",                                           # Primary folder
-            str(single_alt_folder),                        # Single Alt Folder Name
-            eta                                             #Current ETA Date
-        ])
-        time.sleep(DELAY)
-        continue
 
     # Create output folders
     primary_folder = output_folder_path / f"Primary_{today_date}"
@@ -152,17 +123,19 @@ for row in data:
         # Print the Alt folder name after processing all alts
         print(f"ALT files for VPN '{vpn}' are moved to folder: {alt_folder}")
 
-    # Log actions to the Shake Logger Sheet
-    logger_sheet.append_row([
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Date
-        vpn,                                           # Search key
-        primary_name,                                  # Primary Name
-        "Yes" if is_primary_moved else "No",           # Is Primary moved
-        num_alts,                                      # Number of Alts
-        notes,                                         # Notes
-        str(primary_folder) if is_primary_moved else "",  # Primary folder
-        alt_folder_name_logged,                        # Alt Folder Name
-        eta                                            # Current ETA Date
-    ])
-    time.sleep(DELAY)
-#it worked
+        # Log actions to the Shake Logger Sheet
+        """
+        logger_sheet.append_row([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Date
+            vpn,                                           # Search key
+            primary_name,                                  # Primary Name
+            "Yes" if is_primary_moved else "No",           # Is Primary moved
+            num_alts,                                      # Number of Alts
+            notes,                                         # Notes
+            str(primary_folder) if is_primary_moved else "",  # Primary folder
+            alt_folder_name_logged,                        # Alt Folder Name
+            eta                                            # Current ETA Date
+        ])
+        time.sleep(DELAY)
+        """
+        #it worked

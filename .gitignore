@@ -14,3 +14,4 @@ assets/
 *download*/
 *scrap*/
 __pycache__/
+__pycache__/*

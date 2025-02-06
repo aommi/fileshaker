@@ -5,7 +5,6 @@ from sheet_authenticator import SheetAuthenticator
 from load_sheet_data import load_sheet_data
 from search_for_files import search_for_files
 from sort_files import sort_files
-from move_files import move_files
 from log_in_sheet import log_in_sheet
 import os
 import shutil
