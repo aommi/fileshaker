@@ -5,8 +5,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # Step 1: Define the scope and authenticate
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-base_dir = Path('C:/Python Projects/fileshaker')  # Base directory
-asset_dir = base_dir/Path('Assets Processed/')  # Base directory
+base_dir = Path('C:/Python-Projects/fileshaker')  # Base directory
+asset_dir = base_dir/Path('Assets/')  # Base directory
 credentials_path = base_dir / 'secret' / 'sheet-reader-key.json'
 
 credentials = ServiceAccountCredentials.from_json_keyfile_name(str(credentials_path), scope)
@@ -21,7 +21,7 @@ data = renamer_sheet.get_all_records()
 print(data)
 
 # Step 4: Prepare file paths
-source_folder_path = asset_dir /'files-to-uppercase'
+source_folder_path = asset_dir /'files-to-rename'
 
 # Step 5: Rename files based on the sheet
 for row in data:
