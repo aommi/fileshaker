@@ -5,7 +5,7 @@ from pathlib import Path
 # # Configurable setting
 
 # Step 1: Define the scope and authenticate for both sheets
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+scope = ['https://www.googleapis.com/auth/drive']
 
 # Define credentials paths
 base_dir=Path('/Users/amirali/Library/Mobile Documents/com~apple~CloudDocs/Python Projects/fileshaker') #use for mac
