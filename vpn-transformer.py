@@ -7,7 +7,7 @@ def transform_vpn(vpn: str, brand: str):
         brand (str): The brand name.
     
     Returns:
-        tuple: A tuple (brand, vpn, transformed_vpn)
+        tuple: A tuple (brand, vpn, dam_search_key, filename_search_key)
     """
     if brand.lower() == "black diamond":
         if vpn.startswith("AP"):
@@ -18,7 +18,7 @@ def transform_vpn(vpn: str, brand: str):
             raise ValueError(f"Unsupported VPN format for Black Diamond: {vpn}")
         
         filename_search_key = dam_search_key  # Same as DAM search key for this brand
-        return (brand, vpn, filename_search_key)
+        return (brand, vpn, dam_search_key, filename_search_key)
     
     else:
         raise ValueError("Brand transformation logic not implemented.")
@@ -32,7 +32,7 @@ def transform_vpns(vpns: list, brand: str):
         brand (str): The brand name.
     
     Returns:
-        list: A list of tuples (brand, vpn, transformed_vpn)
+        list: A list of tuples (brand, vpn, dam_search_key, filename_search_key)
     """
     transformed_vpns = []
     
@@ -42,8 +42,8 @@ def transform_vpns(vpns: list, brand: str):
     return transformed_vpns
 
 # Example Usage
-vpns = ["APZ9LC015LRG1", "BD58002493260601", "APCDT0426MED1", "AP7470220002LRG1", "AP7450414034LRG1", "BD6812291000ALL1", "BD6812290002ALL1", "BD6800881016ALL1", "AP7440639718LRG1"]
+vpns = ["AP7470220002LRG1", "BD58002493260601"]
 brand = "Black Diamond"
 
 for transformed_vpn in transform_vpns(vpns, brand):
-    print(transformed_vpn)  # Expected: [('Black Diamond', 'APZ9LC015LRG1', 'Z9LC_015'), ('Black Diamond', 'BD58002493260601', '580024_9326')]
+    print(transformed_vpn)  # Expected: [('Black Diamond', 'AP7470220002LRG1', '7470_220', '7470_220'), ('Black Diamond', 'BD58002493260601', '580024_9326', '580024_9326')]

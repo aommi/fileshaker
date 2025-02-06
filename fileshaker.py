@@ -1,140 +1,94 @@
 import os
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from pathlib import Path
 import time
-from config import CONFIG
-#from msal import PublicClientApplication #this is for using oneDrive
-# # Configurable setting
-#SKIP_IF_SINGLE_ALT = False  # Set to False to disable this condition [i removed the code for this condition]
-#DELAY=1.01
-alphabet=["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S","T","U","V","W","X","Y","Z"]
-#the alphabe list is used to name the alt files but the implementation is tricky i had one case
-# that code crashed because there were more images than 26 however it was crappy data
-# Step 1: Define the scope and authenticate for both sheets
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+from dotenv import load_dotenv
+from sheet_utils import SheetUtils
+from files_per_vpn import FilesPerVpn  
 
-# Define credentials paths
-base_dir = Path('C:/python-projects/fileshaker')  # Replace with your base directory if needed
-credentials_path = base_dir / 'secret'
-renamer_credentials_path = credentials_path / 'sheet-reader-key.json'
-logger_credentials_path = credentials_path /  'sheet-writer-key.json'
+load_dotenv()
 
-
-
-# Authenticate for Renamer Sheet
-renamer_credentials = ServiceAccountCredentials.from_json_keyfile_name(str(renamer_credentials_path), scope)
-renamer_client = gspread.authorize(renamer_credentials)
-
-# Authenticate for Shake Logger Sheet
-logger_credentials = ServiceAccountCredentials.from_json_keyfile_name(str(logger_credentials_path), scope)
-logger_client = gspread.authorize(logger_credentials)
-
-# Step 2: Open the sheets by their URLs
-renamer_sheet_url = 'https://docs.google.com/spreadsheets/d/12_sh_2ncWKpIbKKxkXBNCdcmMVdaXf-NUww7MotNxRc/'
-logger_sheet_url = 'https://docs.google.com/spreadsheets/d/1fU1YOUv_DAzIb0PBvx__KfHoZ2EqXymOqnqCgrUMxJc'
-
-# Open sheets
-renamer_sheet = renamer_client.open_by_url(renamer_sheet_url).get_worksheet_by_id('0')
-#logger_sheet = logger_client.open_by_url(logger_sheet_url).get_worksheet_by_id('1513938442')
-
-# Step 3: Read data from the Renamer Sheet
-data = renamer_sheet.get_all_records()  # Get all rows as a list of dictionaries
-print(data[0].keys())
-#add a validation for number of charcters in primary filename so to don't make mistakes
-
-# Step 4: Prepare file paths and date
-source_folder_path = base_dir  / 'assets'/'files-to-shake' 
-output_folder_path = base_dir  / 'assets'/'files-to-photoedit' 
+# Configuration
+DELAY = 1.01
+CUSTOM_SORT = True  # Set this to True for custom sorting, False for default sorting
+alphabet = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S","T","U","V","W","X","Y","Z"]
+base_dir = Path(os.getenv('BASE_DIR'))
+source_folder_path = base_dir / os.getenv('SHAKER_ASSET_DIR')
+output_folder_path = base_dir / 'assets' / 'files-shaked'
 today_date = datetime.now().strftime("%Y-%m-%d")
 
-# Step 5: Loop through the rows in the Renamer Sheet
-for row in data:
-    vpn = str(row['VPN']).lower()  # Convert VPN to string
-    alt_vpn=str(row['alt-VPN']).lower()
+# Initialize SheetUtils
+sheet_utils = SheetUtils()
+
+# Sheet keys and GIDs
+shaker_input_key = os.getenv('SHAKER_INPUT_SHEET_KEY')
+shaker_logger_key = os.getenv('SHAKER_LOGGER_SHEET_KEY')
+shaker_input_gid = int(os.getenv('SHAKER_INPUT_WORKSHEET_GID'))
+shaker_logger_gid = int(os.getenv('SHAKER_LOGGER_WORKSHEET_GID'))
+
+def read_shaker_input():
+    return sheet_utils.read_sheet_data(sheet_utils.reader_client, shaker_input_key, shaker_input_gid)
+
+def log_to_shaker_logger(row_data):
+    sheet_utils.write_to_sheet(sheet_utils.writer_client, shaker_logger_key, shaker_logger_gid, row_data)
+
+def extract_row_data(row):
+    vpn = str(row['VPN']).lower()
+    alt_vpn = str(row['alt-VPN']).lower()
     primary_name = row['Primary Name']
-    notes = row.get('Notes', '')  # Notes column from the Renamer sheet (default to empty)
-    eta=row.get('ETA','')
+    notes = row.get('Notes', '')
+    eta = row.get('ETA', '')
+    return vpn, alt_vpn, primary_name, notes, eta
 
-    # Skip processing if VPN is blank
-    if not vpn:
-        print("Skipping row with blank VPN value.")
-        continue
-    
-    # Search for files containing the VPN in their name
-    files_to_process = [
-        source_folder_path / filename
-        for filename in os.listdir(source_folder_path)
-        if (vpn in filename.lower() or alt_vpn in filename.lower())and not (source_folder_path / filename).is_dir()
-    ]
-    
-    # Skip processing if no matching files are found
-    if not files_to_process:
-        print(f"No matching files found for VPN '{vpn}'. Skipping processing.")
-        continue
-
-    # Sort the files
-    files_to_process.sort()
-    
-    #custom sorting
-    """
-    files_to_process.sort(key=lambda filepath: (
-        0 if 'A1' in str(filepath).lower()
-        else 1 if 'E1' in str(filepath).lower()
-        else 1 if 'D1' in str(filepath).lower()
-        else 1 if 'C1' in str(filepath).lower()
-        else
-        2, filepath
-))
-"""
-
-    # Create output folders
+def create_output_folders():
     primary_folder = output_folder_path / f"Primary_{today_date}"
     alt_folder = output_folder_path / f"ALT_{today_date}"
-
     primary_folder.mkdir(parents=True, exist_ok=True)
     alt_folder.mkdir(parents=True, exist_ok=True)
+    return primary_folder, alt_folder
 
-    # Initialize logging variables
-    is_primary_moved = False
-    num_alts = 0
-    alt_folder_name_logged = ""
+def process_files(data):
+    shaker = FilesPerVpn(
+        source_folder_path=source_folder_path,
+        output_folder_path=output_folder_path,
+        today_date=today_date,
+        alphabet=alphabet,
+        custom_sort=CUSTOM_SORT
+    )
 
-    if files_to_process:
-        # Rename and move the first file
-        first_file = files_to_process[0]
-        file_extension = first_file.suffix
-        new_primary_path = primary_folder / (primary_name + file_extension)
-        first_file.rename(new_primary_path)
-        is_primary_moved = True
-        print(f"Primary file '{first_file.name}' moved to '{primary_folder}'")
+    for row in data:
+        vpn, alt_vpn, primary_name, notes, eta = extract_row_data(row)
+        if not vpn:
+            print("Skipping row with blank VPN value.")
+            continue
 
-        # Process the remaining files (Alt files)
-        for index, file_path in enumerate(files_to_process[1:], start=1):
-            file_extension = file_path.suffix
-            alt_name = f"{primary_name}_ALT_{alphabet[index-1]}{file_extension}"
-            new_alt_file_path = alt_folder / alt_name
-            file_path.rename(new_alt_file_path)
-            num_alts += 1
-            alt_folder_name_logged = str(alt_folder)  # Record the Alt folder name
+        files_to_process = shaker.find_files(vpn, alt_vpn)
+        if not files_to_process:
+            print(f"No matching files found for VPN '{vpn}'. Skipping processing.")
+            continue
 
-        # Print the Alt folder name after processing all alts
-        print(f"ALT files for VPN '{vpn}' are moved to folder: {alt_folder}")
+        files_to_process = shaker.sort_files(files_to_process)
 
-        # Log actions to the Shake Logger Sheet
-        """
-        logger_sheet.append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Date
-            vpn,                                           # Search key
-            primary_name,                                  # Primary Name
-            "Yes" if is_primary_moved else "No",           # Is Primary moved
-            num_alts,                                      # Number of Alts
-            notes,                                         # Notes
-            str(primary_folder) if is_primary_moved else "",  # Primary folder
-            alt_folder_name_logged,                        # Alt Folder Name
-            eta                                            # Current ETA Date
+        primary_folder, alt_folder = create_output_folders()
+        is_primary_moved, num_alts, alt_folder_name_logged = shaker.move_files(files_to_process, vpn, primary_name, primary_folder, alt_folder)
+
+        log_to_shaker_logger([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            vpn,
+            primary_name,
+            "Yes" if is_primary_moved else "No",
+            num_alts,
+            notes,
+            str(primary_folder) if is_primary_moved else "",
+            alt_folder_name_logged,
+            eta
         ])
         time.sleep(DELAY)
-        """
-        #it worked
+
+def main():
+    data = read_shaker_input()
+    print(data[0].keys())
+    process_files(data)
+
+if __name__ == "__main__":
+    main()
