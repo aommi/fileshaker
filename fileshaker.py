@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 import time
 from config import CONFIG
-from sheet_authenticator import SheetAuthenticator
 #from msal import PublicClientApplication #this is for using oneDrive
 # # Configurable setting
 #SKIP_IF_SINGLE_ALT = False  # Set to False to disable this condition [i removed the code for this condition]
@@ -37,7 +36,7 @@ renamer_sheet_url = 'https://docs.google.com/spreadsheets/d/12_sh_2ncWKpIbKKxkXB
 logger_sheet_url = 'https://docs.google.com/spreadsheets/d/1fU1YOUv_DAzIb0PBvx__KfHoZ2EqXymOqnqCgrUMxJc'
 
 # Open sheets
-renamer_sheet = renamer_client.open_by_url(renamer_sheet_url).get_worksheet_by_id('1337513774')
+renamer_sheet = renamer_client.open_by_url(renamer_sheet_url).get_worksheet_by_id('0')
 #logger_sheet = logger_client.open_by_url(logger_sheet_url).get_worksheet_by_id('1513938442')
 
 # Step 3: Read data from the Renamer Sheet
