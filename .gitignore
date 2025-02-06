@@ -11,6 +11,9 @@ files-downloaded/
 .DS_Store
 assets/
 *asset*
+*secret*
+*__pycache__
+
 *download*/
 *scrap*/
 __pycache__/
