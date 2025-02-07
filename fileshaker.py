@@ -4,7 +4,7 @@ from pathlib import Path
 import time
 from dotenv import load_dotenv
 from sheet_utils import SheetUtils
-from files_per_vpn import FilesPerVpn  
+from style_assets import StyleAssets  
 
 load_dotenv()
 
@@ -48,7 +48,7 @@ def create_output_folders():
     return primary_folder, alt_folder
 
 def process_files(data):
-    shaker = FilesPerVpn(
+    shaker = StyleAssets(
         source_folder_path=source_folder_path,
         output_folder_path=output_folder_path,
         today_date=today_date,
@@ -62,15 +62,15 @@ def process_files(data):
             print("Skipping row with blank VPN value.")
             continue
 
-        files_to_process = shaker.find_files(vpn, alt_vpn)
+        files_to_process = shaker.find_assets(vpn, alt_vpn)
         if not files_to_process:
             print(f"No matching files found for VPN '{vpn}'. Skipping processing.")
             continue
 
-        files_to_process = shaker.sort_files(files_to_process)
+        files_to_process = shaker.sort_assets(files_to_process)
 
         primary_folder, alt_folder = create_output_folders()
-        is_primary_moved, num_alts, alt_folder_name_logged = shaker.move_files(files_to_process, vpn, primary_name, primary_folder, alt_folder)
+        is_primary_moved, num_alts, alt_folder_name_logged = shaker.move_assets(files_to_process, vpn, primary_name, primary_folder, alt_folder)
 
         log_to_shaker_logger([
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
