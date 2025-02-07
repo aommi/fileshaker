@@ -9,8 +9,7 @@ files-downloaded/
 !*.example
 *pycache/
 .DS_Store
-assets/
-*asset*
+*assets*/
 *secret*
 *__pycache__
 
