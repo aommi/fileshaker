@@ -5,12 +5,13 @@ import time
 from dotenv import load_dotenv
 from sheet_utils import SheetUtils
 from style_assets import StyleAssets  
+from data_pre_processor import DataPreProcessor
 
 load_dotenv()
 
 # Configuration
-DELAY = 1.01
-CUSTOM_SORT = True  # Set this to True for custom sorting, False for default sorting
+DELAY = 1.1
+CUSTOM_SORT = False  # Set this to True for custom sorting, False for default sorting
 alphabet = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S","T","U","V","W","X","Y","Z"]
 base_dir = Path(os.getenv('BASE_DIR'))
 source_folder_path = base_dir / os.getenv('SHAKER_ASSET_DIR')
@@ -19,6 +20,7 @@ today_date = datetime.now().strftime("%Y-%m-%d")
 
 # Initialize SheetUtils
 sheet_utils = SheetUtils()
+data_pre_processor = DataPreProcessor()
 
 # Sheet keys and GIDs
 shaker_input_key = os.getenv('SHAKER_INPUT_SHEET_KEY')
@@ -32,14 +34,6 @@ def read_shaker_input():
 def log_to_shaker_logger(row_data):
     sheet_utils.write_to_sheet(sheet_utils.writer_client, shaker_logger_key, shaker_logger_gid, row_data)
 
-def extract_row_data(row):
-    vpn = str(row['VPN']).lower()
-    alt_vpn = str(row['alt-VPN']).lower()
-    primary_name = row['Primary Name']
-    notes = row.get('Notes', '')
-    eta = row.get('ETA', '')
-    return vpn, alt_vpn, primary_name, notes, eta
-
 def create_output_folders():
     primary_folder = output_folder_path / f"Primary_{today_date}"
     alt_folder = output_folder_path / f"ALT_{today_date}"
@@ -47,7 +41,7 @@ def create_output_folders():
     alt_folder.mkdir(parents=True, exist_ok=True)
     return primary_folder, alt_folder
 
-def process_files(data):
+def process_files(prepared_data):
     shaker = StyleAssets(
         source_folder_path=source_folder_path,
         output_folder_path=output_folder_path,
@@ -56,12 +50,8 @@ def process_files(data):
         custom_sort=CUSTOM_SORT
     )
 
-    for row in data:
-        vpn, alt_vpn, primary_name, notes, eta = extract_row_data(row)
-        if not vpn:
-            print("Skipping row with blank VPN value.")
-            continue
-
+    for data in prepared_data:
+        vpn, alt_vpn, primary_name, notes, eta = data
         files_to_process = shaker.find_assets(vpn, alt_vpn)
         if not files_to_process:
             print(f"No matching files found for VPN '{vpn}'. Skipping processing.")
@@ -88,7 +78,9 @@ def process_files(data):
 def main():
     data = read_shaker_input()
     print(data[0].keys())
-    process_files(data)
+    process = 'shaker'  # Change this to 'download' for download processing
+    prepared_data = data_pre_processor.prepare_data(data, process)
+    process_files(prepared_data)
 
 if __name__ == "__main__":
     main()

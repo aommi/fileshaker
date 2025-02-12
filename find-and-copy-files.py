@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     # Specify file extensions to exclude
     #excluded_extensions = ['.txt', '.log', '.tmp']  # Add extensions to exclude #--example
-    excluded_extensions = ['.tif','.jpg']
+    excluded_extensions = ['.tif']
     operation=input("Enter the operation (copy/move): ").strip().lower()
 
     search_and_copy_files(search_keys_file, source_folder, destination_folder, excluded_extensions, operation)
