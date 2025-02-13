@@ -1,27 +1,38 @@
 import os
 import shutil
+import fnmatch
 
 # Function to search and copy files
-def search_and_copy_files(search_keys_file, source_folder, destination_folder, excluded_extensions, operation="copy"):
-    # Read search keys from the text file
+def search_and_copy_files(search_keys_file, source_folder, destination_folder, excluded_extensions, operation="copy", use_wildcards=False):
+    # Read search keys from the text file and convert to lowercase, remove spaces
     with open(search_keys_file, 'r') as file:
-        search_keys = [line.strip() for line in file]
-
+        search_keys = [line.strip().lower().replace(' ', '') for line in file]
     # Ensure the destination folder exists
     os.makedirs(destination_folder, exist_ok=True)
 
     # Walk through all subdirectories and files
     for root, dirs, files in os.walk(source_folder):
         for file_name in files:
+            # Convert filename to lowercase and remove spaces for comparison
+            file_name_lower = file_name.lower().replace(' ', '')
+            
             # Check if the file has an excluded extension
-            if any(file_name.endswith(ext) for ext in excluded_extensions):
+            if any(file_name_lower.endswith(ext.lower()) for ext in excluded_extensions):
                 continue  # Skip this file
 
-            # Check if the file contains any of the search keys
+            # Check if the file matches any of the search keys
             for key in search_keys:
-                if key.lower() in file_name.lower():
+                matches = False
+                if use_wildcards:
+                    matches = fnmatch.fnmatch(file_name_lower, key) or (key in file_name_lower)
+                else:
+                    matches = key in file_name_lower
+
+                if matches:
                     source_path = os.path.join(root, file_name)
                     destination_path = os.path.join(destination_folder, file_name)
+                    
+                    print(f"Match found: '{key}' in '{file_name}'")  # Debug print
 
                     # Perform the specified operation
                     if operation == "move":
@@ -40,5 +51,5 @@ if __name__ == "__main__":
     #excluded_extensions = ['.txt', '.log', '.tmp']  # Add extensions to exclude #--example
     excluded_extensions = ['.tif']
     operation=input("Enter the operation (copy/move): ").strip().lower()
-
-    search_and_copy_files(search_keys_file, source_folder, destination_folder, excluded_extensions, operation)
+    use_wildcards=True
+    search_and_copy_files(search_keys_file, source_folder, destination_folder, excluded_extensions, operation, use_wildcards)

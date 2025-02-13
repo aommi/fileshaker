@@ -11,7 +11,7 @@ load_dotenv()
 
 # Configuration
 DELAY = 1.1
-CUSTOM_SORT = False  # Set this to True for custom sorting, False for default sorting
+CUSTOM_SORT = True  # Set this to True for custom sorting, False for default sorting
 alphabet = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","P","Q","R","S","T","U","V","W","X","Y","Z"]
 base_dir = Path(os.getenv('BASE_DIR'))
 source_folder_path = base_dir / os.getenv('SHAKER_ASSET_DIR')
