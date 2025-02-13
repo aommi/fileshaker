@@ -1,0 +1,57 @@
+use PATH for consistency
+Fileshaker
+
+initial inputs:
+dictionary: sku, filename search keys
+assets: directory path (files-to-shake)
+
+pre-process(spreadsheet, data mapping for shaker process, spreadsheet_type:google/microsoft):
+read data from spreadsheet
+create the dictionary data set
+#remove unused data from memory
+
+set brand
+for each brand process fileshaker #each brand has its own sort key for assets, has its own vpn mapping
+                                  #and will have its own destination brand
+
+process:
+fileshaker(input_dictionary, assets: source directory path , excluded filetypes, brand.sortkey)
+
+
+# for each brand
+for each row in the dictionary:
+  #this search is used in find in dam dump process too 
+  def find assets (searchkey, directory ,excluded filetypes):
+    return list of files in directory that match searchkey and are not in excluded filetypes
+    # handle to ignore when search key is empty
+    # handle case insensitivity
+    #handle wild card usage
+    #handle if no asset is found
+
+    def sort assets (assets, optional sortkey):
+    default sortkey to filename
+return sorted assets by sortkey
+
+def rename assets (sorted assets, sku):
+  #this is the core functionality which will result in assigning assets to skus
+    rename assets[0] to sku
+    i=1
+    for asset[i] in assets 
+    rename assets[i] to sku_ALT-Char(i)
+
+def move (file_name, directoy path, destination directory path)
+  #this move is needed so that primary and alt files can be assigned to primary and alt image processing pipeline
+  #this could possibly happen at the end of the process too
+  check if destination directory exist
+  if doesn't exist create
+  if exists continue
+  handle file extension
+  file.rename (destination directory)
+
+timeline log (datetime, sku, signature, process) #[handle quota]
+shaker log (search key, sku, number of assets found, ) #[handle quota]
+
+#what happens when we have swatch? - ignore moving swatches
+#what happens with MEC brand where the files are named already? ; I think it doesn't matter if that info is lost
+# oh maybe this can be the case where the vpn=sku then name in a certain way to just fix the naming
+#rather than renaming the whole thing from start
