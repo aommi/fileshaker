@@ -73,7 +73,6 @@ def process_files(prepared_data):
             alt_folder_name_logged,
             eta
         ])
-        time.sleep(DELAY)
 
 def main():
     data = read_shaker_input()
