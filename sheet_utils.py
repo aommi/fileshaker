@@ -3,6 +3,7 @@ from pathlib import Path
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
+import time
 
 class SheetUtils:
     def __init__(self):
@@ -54,3 +55,4 @@ class SheetUtils:
     def write_to_sheet(self, client, sheet_key, sheet_gid, row_data):
         sheet = client.open_by_key(sheet_key).get_worksheet_by_id(sheet_gid)
         sheet.append_row(row_data)
+        time.sleep(1)  # Sleep for 1 second to avoid rate limiting
