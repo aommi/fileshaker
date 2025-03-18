@@ -39,19 +39,63 @@ def sanitize_filename(filename: str) -> str:
     """Remove invalid characters from filenames."""
     return re.sub(r'[<>:"/\\|?*]', '_', filename)
 
-# Download files based on URL and naming conventions
+def try_download_with_session(url: str) -> requests.Response:
+    """Attempt to download with session if normal request fails."""
+    session = requests.Session()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+    return session.get(url, headers=headers, stream=True, allow_redirects=True)
+
+def get_extension_from_response(response):
+    """Get file extension from Content-Type header or default to .jpg"""
+    content_type = response.headers.get('Content-Type', '')
+    if 'image/jpeg' in content_type or 'image/jpg' in content_type:
+        return '.jpg'
+    elif 'image/png' in content_type:
+        return '.png'
+    elif 'image/tiff' in content_type:
+        return '.tif'
+    return '.jpg'
+
+def download_file(url: str, filepath: str) -> bool:
+    """Download file with fallback to session-based download if direct download fails."""
+    try:
+        # First attempt - direct download (unchanged)
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        # Only handle extension in fallback case
+        try:
+            response = try_download_with_session(url)
+            response.raise_for_status()
+            
+            # Only update extension if the original extension is missing
+            if not os.path.splitext(filepath)[1]:
+                new_ext = get_extension_from_response(response)
+                filepath = os.path.splitext(filepath)[0] + new_ext
+                
+        except requests.RequestException as e:
+            print(f"Both download attempts failed for {url}: {e}")
+            return False
+
+    # If we got here, one of the download attempts succeeded
+    with open(filepath, 'wb') as file:
+        for chunk in response.iter_content(chunk_size=8192):
+            file.write(chunk)
+    return True
+
+# Modify the main download loop
 for index, record in enumerate(data):
     url = record.get("URL")
     product_id_colour = record.get("ProductID_Colour")
     asset_type = record.get("Image Type")
-    vpn=record.get("vpn")
+    vpn = record.get("vpn")
 
     if url and url.startswith("http"):
         try:
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-            file_extension = os.path.splitext(url.split('?')[0])[-1]  # Ignore query parameters for extension
-
+            file_extension = os.path.splitext(url.split('?')[0])[-1]
+            
             if asset_type and asset_type.lower() == "primary" and product_id_colour:
                 filename = f"{product_id_colour}{file_extension}"
             elif asset_type and asset_type.lower() == "alt" and product_id_colour:
@@ -60,14 +104,15 @@ for index, record in enumerate(data):
             else:
                 filename = f"file_{index + 1}{file_extension}"
 
-            filename = sanitize_filename(filename)  # Clean the filename
+            filename = sanitize_filename(filename)
             filepath = os.path.join(DOWNLOAD_DIR, filename)
 
-            with open(filepath, 'wb') as file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    file.write(chunk)
-            print(f"Downloaded: {url} to {filepath}")
-        except requests.RequestException as e:
-            print(f"Failed to download {url}: {e}")
+            if download_file(url, filepath):
+                print(f"Successfully downloaded: {url} to {filepath}")
+            else:
+                print(f"Failed to download: {url}")
+
+        except Exception as e:
+            print(f"Error processing {url}: {str(e)}")
     else:
         print(f"Invalid URL or missing URL in record: {record}")
