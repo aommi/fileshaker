@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 import time
 from collections import defaultdict
-import re  # Import regex to clean filenames
+import re  # sanitizing filenames
 
 # Step 1: Define the scope and authenticate for both sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -44,6 +44,7 @@ for index, record in enumerate(data):
     url = record.get("URL")
     product_id_colour = record.get("ProductID_Colour")
     asset_type = record.get("Image Type")
+    vpn=record.get("vpn")
 
     if url and url.startswith("http"):
         try:
