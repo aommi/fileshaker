@@ -7,6 +7,9 @@ from pathlib import Path
 import time
 from collections import defaultdict
 import re  # sanitizing filenames
+import concurrent.futures
+from itertools import groupby
+from operator import itemgetter
 
 # Step 1: Define the scope and authenticate for both sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -85,34 +88,50 @@ def download_file(url: str, filepath: str) -> bool:
             file.write(chunk)
     return True
 
-# Modify the main download loop
-for index, record in enumerate(data):
-    url = record.get("URL")
-    product_id_colour = record.get("ProductID_Colour")
-    asset_type = record.get("Image Type")
-    vpn = record.get("vpn")
+def process_product_group(product_group):
+    """Process all URLs for a single product_id_colour"""
+    local_alt_count = 0
+    for record in product_group:
+        url = record.get("URL")
+        product_id_colour = record.get("ProductID_Colour")
+        asset_type = record.get("Image Type")
 
-    if url and url.startswith("http"):
-        try:
-            file_extension = os.path.splitext(url.split('?')[0])[-1]
-            
-            if asset_type and asset_type.lower() == "primary" and product_id_colour:
-                filename = f"{product_id_colour}{file_extension}"
-            elif asset_type and asset_type.lower() == "alt" and product_id_colour:
-                alt_file_count[product_id_colour] += 1
-                filename = f"{product_id_colour}_ALT-{alt_file_count[product_id_colour]}{file_extension}"
-            else:
-                filename = f"file_{index + 1}{file_extension}"
+        if url and url.startswith("http"):
+            try:
+                file_extension = os.path.splitext(url.split('?')[0])[-1]
+                
+                if asset_type and asset_type.lower() == "primary" and product_id_colour:
+                    filename = f"{product_id_colour}{file_extension}"
+                elif asset_type and asset_type.lower() == "alt" and product_id_colour:
+                    local_alt_count += 1
+                    filename = f"{product_id_colour}_ALT-{local_alt_count}{file_extension}"
+                else:
+                    continue  # Skip invalid records
 
-            filename = sanitize_filename(filename)
-            filepath = os.path.join(DOWNLOAD_DIR, filename)
+                filename = sanitize_filename(filename)
+                filepath = os.path.join(DOWNLOAD_DIR, filename)
 
-            if download_file(url, filepath):
-                print(f"Successfully downloaded: {url} to {filepath}")
-            else:
-                print(f"Failed to download: {url}")
+                if download_file(url, filepath):
+                    print(f"Successfully downloaded: {url} to {filepath}")
+                else:
+                    print(f"Failed to download: {url}")
 
-        except Exception as e:
-            print(f"Error processing {url}: {str(e)}")
-    else:
-        print(f"Invalid URL or missing URL in record: {record}")
+            except Exception as e:
+                print(f"Error processing {url}: {str(e)}")
+
+def main():
+    # Group records by product_id_colour
+    sorted_data = sorted(data, key=lambda x: x.get("ProductID_Colour"))
+    product_groups = groupby(sorted_data, key=lambda x: x.get("ProductID_Colour"))
+    
+    # Convert groups to lists since groupby iterator can only be used once
+    product_groups = [(k, list(g)) for k, g in product_groups if k]  # Skip empty product IDs
+    
+    # Process groups in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        futures = [executor.submit(process_product_group, group) 
+                  for _, group in product_groups]
+        concurrent.futures.wait(futures)
+
+if __name__ == "__main__":
+    main()
