@@ -42,6 +42,18 @@ def sanitize_filename(filename: str) -> str:
     """Remove invalid characters from filenames."""
     return re.sub(r'[<>:"/\\|?*]', '_', filename)
 
+# Add this function after sanitize_filename
+def get_google_drive_file_id(url: str) -> str | None:
+    """Extract file ID from Google Drive URL."""
+    patterns = [
+        r'drive\.google\.com/file/d/(.*?)/',  # Format: /file/d/{fileId}/
+        r'drive\.google\.com/open\?id=(.*?)($|&)'  # Format: ?id={fileId}
+    ]
+    for pattern in patterns:
+        if match := re.search(pattern, url):
+            return match.group(1)
+    return None
+
 def try_download_with_session(url: str) -> requests.Response:
     """Attempt to download with session if normal request fails."""
     session = requests.Session()
@@ -62,27 +74,51 @@ def get_extension_from_response(response):
     return '.jpg'
 
 def download_file(url: str, filepath: str) -> bool:
-    """Download file with fallback to session-based download if direct download fails."""
+    """Download file from URL to filepath."""
     try:
-        # First attempt - direct download (unchanged)
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
+        # Check if it's a Google Drive URL
+        if 'drive.google.com' in url:
+            file_id = get_google_drive_file_id(url)
+            if not file_id:
+                print(f"Could not extract file ID from Google Drive URL: {url}")
+                return False
+            
+            # Use the direct download URL
+            download_url = f"https://drive.google.com/uc?id={file_id}"
+            
+            # Special headers for Google Drive
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+            }
+            
+            response = requests.get(download_url, headers=headers, stream=True)
+            response.raise_for_status()
+            
+            # Check if we got an actual file and not an HTML page
+            content_type = response.headers.get('Content-Type', '')
+            if 'text/html' in content_type:
+                raise requests.RequestException("Received HTML instead of file content")
+                
+        else:
+            # Regular URL handling
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            
     except requests.RequestException as e:
-        # Only handle extension in fallback case
         try:
             response = try_download_with_session(url)
             response.raise_for_status()
-            
-            # Only update extension if the original extension is missing
-            if not os.path.splitext(filepath)[1]:
-                new_ext = get_extension_from_response(response)
-                filepath = os.path.splitext(filepath)[0] + new_ext
-                
         except requests.RequestException as e:
             print(f"Both download attempts failed for {url}: {e}")
             return False
 
-    # If we got here, one of the download attempts succeeded
+    # Ensure filepath has an extension
+    if not os.path.splitext(filepath)[1]:
+        new_ext = get_extension_from_response(response)
+        filepath = os.path.splitext(filepath)[0] + new_ext
+
+    # Save the file
     with open(filepath, 'wb') as file:
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
@@ -91,18 +127,22 @@ def download_file(url: str, filepath: str) -> bool:
 def process_product_group(product_group):
     """Process all URLs for a single product_id_colour"""
     local_alt_count = 0
-    for record in product_group:
+    for index, record in enumerate(product_group):
         url = record.get("URL")
         product_id_colour = record.get("ProductID_Colour")
-        asset_type = record.get("Image Type")
+        asset_type = record.get("Image Type", "").lower()  # Get Image Type, default to empty string
 
         if url and url.startswith("http"):
             try:
                 file_extension = os.path.splitext(url.split('?')[0])[-1]
                 
-                if asset_type and asset_type.lower() == "primary" and product_id_colour:
+                # Determine if primary or alt based on index if Image Type is empty
+                if not asset_type:
+                    asset_type = "primary" if index == 0 else "alt"
+
+                if asset_type == "primary" and product_id_colour:
                     filename = f"{product_id_colour}{file_extension}"
-                elif asset_type and asset_type.lower() == "alt" and product_id_colour:
+                elif asset_type == "alt" and product_id_colour:
                     local_alt_count += 1
                     filename = f"{product_id_colour}_ALT-{local_alt_count}{file_extension}"
                 else:
