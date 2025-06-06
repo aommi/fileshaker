@@ -21,7 +21,7 @@ def validate_and_organize_images(input_folder):
 
     # Patterns
     primary_pattern = re.compile(r'^(\d{7})_([A-Za-z0-9]{5})$')
-    alt_pattern = re.compile(r'^(\d{7}_[A-Za-z0-9]{5})_ALT-[A-Za-z0-9]+$')
+    alt_pattern = re.compile(r'^(\d{7}_[A-Za-z0-9]{5})_ALT[_-][A-Za-z0-9]+$')
     swatch_pattern = re.compile(r'^(\d{7}_[A-Za-z0-9]{5})_SWATCH$')
 
     # Storage
